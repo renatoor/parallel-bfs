@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <utility>
 
+#include "BFS.h"
+
 std::pair<std::vector<int>, std::vector<int>> parse_file(std::string& filename) {
     std::string line;
     std::ifstream file (filename);
@@ -37,7 +39,7 @@ std::pair<std::vector<int>, std::vector<int>> parse_file(std::string& filename) 
         m = stoi(line);
     }
 
-    std::vector<int> vertices (n);
+    std::vector<int> vertices (n + 1);
     std::vector<int> edges (m);
 
     int i = 0;
@@ -53,6 +55,8 @@ std::pair<std::vector<int>, std::vector<int>> parse_file(std::string& filename) 
     while (std::getline(file, line)) {
         edges[i++] = stoi(line);
     }
+
+    vertices[n] = i;
 
     file.close();
 
@@ -82,6 +86,8 @@ int main(int argc, char **argv)
     auto graph = parse_file(filename);
 
     auto [vertices, edges] = graph;
+
+    BFS bfs (vertices, edges);
 
     return 0;
 }
