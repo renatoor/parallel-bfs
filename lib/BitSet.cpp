@@ -20,7 +20,7 @@ bool BitSet::contains(uint64_t value) {
 }
 
 bool BitSet::empty() {
-    return _size > 0;
+    return _size == 0;
 }
 
 const std::vector<uint64_t>& BitSet::data() {
