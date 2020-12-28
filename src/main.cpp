@@ -66,10 +66,10 @@ std::pair<std::vector<int>, std::vector<int>> parse_file(std::string& filename) 
 int main(int argc, char **argv)
 {
     char c;
-    int source;
+    int source = -1;
     std::string filename;
 
-    while ((c = getopt(argc, argv, "f:")) != -1) {
+    while ((c = getopt(argc, argv, "f:s:")) != -1) {
         switch (c) {
             case 'f':
                 filename.assign(optarg);
@@ -88,6 +88,8 @@ int main(int argc, char **argv)
     auto [vertices, edges] = graph;
 
     BFS bfs (vertices, edges);
+
+	bfs.search(source);
 
     return 0;
 }
