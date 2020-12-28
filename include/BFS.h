@@ -18,8 +18,13 @@ private:
 
     void denseLayer();
 
+	int _degree;
+
+	std::vector<int> _vertices;
+	std::vector<int> _edges;
     std::vector<int> _parent;
     std::vector<int> _sparse;
+
     BitSet _dense;
 };
 
