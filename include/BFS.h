@@ -25,6 +25,9 @@ private:
     std::vector<int> _parent;
     std::vector<int> _sparse;
 
+	void switchToDense();
+	void switchToSparse();
+
     BitSet _dense;
 };
 
