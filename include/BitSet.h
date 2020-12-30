@@ -12,9 +12,13 @@ public:
 
     void insert(uint64_t value);
 
+	void remove(uint64_t value);
+
     bool contains(uint64_t value);
 
     bool empty();
+
+	void clear();
 
     const std::vector<uint64_t>& data();
 
