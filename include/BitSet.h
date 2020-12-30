@@ -10,6 +10,8 @@ public:
 
     ~BitSet();
 
+	BitSet& operator=(BitSet &other);
+
     void insert(uint64_t value);
 
 	void remove(uint64_t value);
