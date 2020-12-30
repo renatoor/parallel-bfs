@@ -1,6 +1,7 @@
 #include "BitSet.h"
 
 #include <algorithm>
+#include <iostream>
 
 BitSet::BitSet(size_t size) : _data((size + 63) / 64), _size(0) {}
 
@@ -42,3 +43,11 @@ const std::vector<uint64_t>& BitSet::data() {
     return _data;
 }
 
+BitSet BitSet::operator=(BitSet const &r) {
+    if (&r != this) {
+        std::cout << "TAMANHO: " << r._size << std::endl;
+        _data = r._data;
+        _size = r._size;//r._size;
+    }
+    return *this;
+}

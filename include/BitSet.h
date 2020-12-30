@@ -22,6 +22,8 @@ public:
 
     const std::vector<uint64_t>& data();
 
+    BitSet operator=(BitSet const &r);
+
 private:
 
     std::vector<uint64_t> _data;

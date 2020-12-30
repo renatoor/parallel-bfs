@@ -21,10 +21,10 @@ void BFS::search(int source) {
     _sparse.push_back(source);
 
     while(!_sparse.empty() || !_dense.empty()) {
-		sparseLayer();
+		//sparseLayer();
 		switchToDense();
-		switchToSparse();
-		break;
+		denseLayer();
+		//switchToSparse();
     }
 
 	for (size_t i = 0; i < _parent.size(); i++) {
@@ -69,6 +69,34 @@ void BFS::sparseLayer() {
 }
 
 void BFS::denseLayer() {
+	std::vector<std::future<std::pair<std::vector<int>, int>>> futures;
+	BitSet nextLayer = BitSet(_vertices.size() - 1);
+	int nextLayerDegree = 0, neighbor;
+	
+	for (size_t i = 0; i < _vertices.size(); i++) {
+		if (_parent[i] != -1) 
+			continue;
+		
+		for (int j = _vertices[i]; j < _vertices[i + 1]; j++) {
+			neighbor = _edges[j];
+			
+			if (! _dense.contains(neighbor))
+				continue;
+			
+			_parent[i] = neighbor;
+			nextLayer.insert(i);
+
+			//std::cout << "After Contains:"  << nextLayer.contains(neighbor) << std::endl;
+			nextLayerDegree += _vertices[neighbor + 1] - _vertices[neighbor];
+			break;
+		}
+	}
+
+	_dense = nextLayer;
+
+	for(auto i = 0; i < nextLayer.data().size(); i++){
+		std::cout << nextLayer.data()[i] << std::endl;
+	}
 }
 
 void BFS::switchToDense() {
