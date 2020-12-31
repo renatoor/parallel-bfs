@@ -7,6 +7,13 @@ BitSet::BitSet(size_t size) : _data((size + 63) / 64), _size(0) {}
 
 BitSet::~BitSet() {}
 
+BitSet& BitSet::operator=(BitSet &other) {
+	_data = other._data;
+	_size = other._size;
+
+	return *this;
+}
+
 void BitSet::insert(uint64_t value) {
     size_t bucket = value >> _bucket_bits;
     uint64_t bit = 1ULL << (value & _bucket_mask);
