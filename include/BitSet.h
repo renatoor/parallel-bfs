@@ -10,7 +10,7 @@ public:
 
     ~BitSet();
 
-	BitSet& operator=(BitSet &other);
+    BitSet& operator=(BitSet &other);
 
     void insert(uint64_t value);
 
@@ -20,11 +20,9 @@ public:
 
     bool empty();
 
-	void clear();
+    void clear();
 
     const std::vector<uint64_t>& data();
-
-    BitSet operator=(BitSet const &r);
 
 private:
 

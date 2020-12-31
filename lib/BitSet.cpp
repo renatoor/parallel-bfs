@@ -49,12 +49,3 @@ void BitSet::clear() {
 const std::vector<uint64_t>& BitSet::data() {
     return _data;
 }
-
-BitSet BitSet::operator=(BitSet const &r) {
-    if (&r != this) {
-        std::cout << "TAMANHO: " << r._size << std::endl;
-        _data = r._data;
-        _size = r._size;//r._size;
-    }
-    return *this;
-}
