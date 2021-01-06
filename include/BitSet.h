@@ -14,11 +14,7 @@ public:
 
     void insert(uint64_t value);
 
-	void remove(uint64_t value);
-
     bool contains(uint64_t value);
-
-    bool empty();
 
     void clear();
 
@@ -27,8 +23,6 @@ public:
 private:
 
     std::vector<uint64_t> _data;
-
-    size_t _size;
 
     const uint64_t _bucket_bits = 6;
     const uint64_t _bucket_size = 1 << 6;
