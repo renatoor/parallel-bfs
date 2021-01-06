@@ -1,138 +1,207 @@
 #include "BFS.h"
 
-#include <thread>
-#include <iostream>
-#include <future>
-#include <utility>
-#include <bitset>
-#include <algorithm>
+#include <omp.h>
 
-BFS::BFS(std::vector<int> vertices, std::vector<int>edges) :
+BFS::BFS(std::vector<int> &vertices, std::vector<int> &edges) :
+	_n(vertices.size() - 1),
+	_size(0),
 	_degree(0),
+	_maxThreads(omp_get_max_threads()),
 	_vertices(vertices),
 	_edges(edges),
-	_parent(vertices.size() - 1, -1),
-	_dense(vertices.size() - 1) {}
+	_parent(_n, -1),
+	_prefixSum(_maxThreads + 1),
+	_nextSparseSize(_maxThreads),
+	_nextSparse(_maxThreads),
+	_dense(_n),
+	_nextDense(_n)
+{
+	_sparse.reserve(_n);
+
+	for (int i = 0; i < _maxThreads; i++) {
+		_nextSparse[i].reserve(_n);
+	}
+}
 
 BFS::~BFS() {}
 
 void BFS::search(int source) {
     _parent[source] = source;
-    _sparse.push_back(source);
+    _sparse[0] = source;
+	_size = 1;
+	_representation = Representation::Sparse;
 
-    while(!_sparse.empty() || !_dense.empty()) {
-		sparseLayer();
-		switchToDense();
-		denseLayer();
-		switchToSparse();
+    while (_size != 0) {
+		if (_representation == Representation::Sparse) {
+			if (_degree <= _n >> 5) {
+				sparseLayer();
+			}
+			else {
+				switchToDense();
+				denseLayer();
+			}
+		}
+		else {
+			if ((_size > _n >> 5) || (_degree > _n >> 5)) {
+				denseLayer();
+			}
+			else {
+				switchToSparse();
+				sparseLayer();
+			}
+		}
     }
-
-	for (size_t i = 0; i < _parent.size(); i++) {
-		if (_parent[i] == -1) continue;
-		std::cout << "vertex " << i << " parent " << _parent[i] << std::endl;
-	}
 }
 
 void BFS::sparseLayer() {
-	std::vector<std::future<std::pair<std::vector<int>, int>>> futures;
-	std::vector<int> nextLayer;
-	int nextLayerDegree = 0;
+	int nextLayerDegree = 0, tid = 0, vertex, neighbor, i, j;
 
-	for (auto &vertex : _sparse) {
-		futures.push_back(std::async(std::launch::async, [&] (int vertex) -> std::pair<std::vector<int>, int> {
-			int degree = 0;
-			std::vector<int> layer;
+	std::fill(_nextSparseSize.begin(), _nextSparseSize.end(), 0);
 
-			for (int i = _vertices[vertex]; i < _vertices[vertex + 1]; i++) {
-				int neighbor = _edges[i];
+	if (_size == 1) {
+		vertex = _sparse[0];
+
+		#pragma omp parallel for private(tid, neighbor) reduction(+:nextLayerDegree) schedule(guided)
+		for (i = _vertices[vertex]; i < _vertices[vertex + 1]; i++) {
+			tid = omp_get_thread_num();
+
+			neighbor = _edges[i];
+
+			if (_parent[neighbor] == -1) {
+				_parent[neighbor] = vertex;
+
+				_nextSparse[tid][_nextSparseSize[tid]++] = neighbor;
+
+				nextLayerDegree += _vertices[neighbor + 1] - _vertices[neighbor];
+			}
+		}
+	}
+	else {
+		#pragma omp parallel for private(tid, vertex, neighbor, j) reduction(+:nextLayerDegree) schedule(guided)
+		for (i = 0; i < _size; i++) {
+			tid = omp_get_thread_num();
+
+			vertex = _sparse[i];
+
+			for (j = _vertices[vertex]; j < _vertices[vertex + 1]; j++) {
+				neighbor = _edges[j];
 
 				if (_parent[neighbor] == -1) {
 					_parent[neighbor] = vertex;
-					layer.push_back(neighbor);
-					degree += _vertices[neighbor + 1] - _vertices[neighbor];
+
+					_nextSparse[tid][_nextSparseSize[tid]++] = neighbor;
+
+					nextLayerDegree += _vertices[neighbor + 1] - _vertices[neighbor];
 				}
 			}
-
-			return std::make_pair(layer, degree);
-		}, vertex));
+		}
 	}
 
-	for (auto &f : futures) {
-		auto [layer, degree] = f.get();
+	_sparse.clear();
 
-		nextLayer.insert(nextLayer.end(), layer.begin(), layer.end());
-		nextLayerDegree += degree;
+	_prefixSum[0] = 0;
+
+	for (i = 0; i < _maxThreads; i++) {
+		_prefixSum[i + 1] = _prefixSum[i] + _nextSparseSize[i];
 	}
 
-	_sparse = nextLayer;
+	#pragma omp parallel for private(tid, j)
+	for (i = 0; i < _maxThreads; i++) {
+		tid = omp_get_thread_num();
+
+		for (j = 0; j < _nextSparseSize[tid]; j++) {
+			_sparse[_prefixSum[tid] + j] = _nextSparse[tid][j];
+		}
+	}
+
+	_size = _prefixSum[_maxThreads];
 	_degree = nextLayerDegree;
 }
 
 void BFS::denseLayer() {
-	std::vector<std::future<std::pair<std::vector<int>, int>>> futures;
-	BitSet nextLayer = BitSet(_vertices.size() - 1);
-	int nextLayerDegree = 0, neighbor;
+	int nextLayerSize = 0, nextLayerDegree = 0, i, j, neighbor;
+
+	_nextDense.clear();
 	
-	for (size_t i = 0; i < _vertices.size(); i++) {
-		if (_parent[i] != -1) 
+	#pragma omp parallel for private(j, neighbor) reduction(+:nextLayerSize, nextLayerDegree) schedule(dynamic, 512)
+	for (i = 0; i < _n; i++) {
+		if (_parent[i] != -1) {
 			continue;
+		}
 		
-		for (int j = _vertices[i]; j < _vertices[i + 1]; j++) {
+		for (j = _vertices[i]; j < _vertices[i + 1]; j++) {
 			neighbor = _edges[j];
 			
-			if (! _dense.contains(neighbor))
+			if (!_dense.contains(neighbor)) {
 				continue;
-			
-			_parent[i] = neighbor;
-			nextLayer.insert(i);
+			}
 
-			nextLayerDegree += _vertices[neighbor + 1] - _vertices[neighbor];
+			_parent[i] = neighbor;
+
+			_nextDense.insert(i);
+
+			nextLayerDegree += _vertices[i + 1] - _vertices[i];
+			nextLayerSize++;
 			break;
 		}
 	}
 
-	_dense = nextLayer;
+	_dense = _nextDense;
+	_degree = nextLayerDegree;
+	_size = nextLayerSize;
 }
 
 void BFS::switchToDense() {
-	for (auto &vertex : _sparse) {
-		_dense.insert(vertex);
+	for (int i = 0; i < _size; i++) {
+		_dense.insert(_sparse[i]);
 	}
 
 	_sparse.clear();
+	_representation = Representation::Dense;
 }
 
 void BFS::switchToSparse() {
-	std::vector<std::future<std::vector<int>>> futures;
+	uint64_t bits;
+	int tid, i, j, bit, vertex;
+
+	std::fill(_nextSparseSize.begin(), _nextSparseSize.end(), 0);
 
 	std::vector<uint64_t> data = _dense.data();
 
-	for (size_t i = 0; i < data.size(); i += 8) {
-		futures.push_back(std::async(std::launch::async, [&data] (size_t begin, size_t end) -> std::vector<int> {
-			std::vector<int> layer;
+	#pragma omp parallel for private(tid, bits, bit, vertex)
+	for (i = 0; i < (int) data.size(); i++) {
+		tid = omp_get_thread_num();
 
-			for (size_t i = begin; i < std::min(data.size(), end); i++) {
-				uint64_t bits = data[i];
+		bits = data[i];
 
-				while (bits != 0) {
-					int bit = __builtin_ctzll(bits);
-					int vertex = bit + i * 64;
+		while (bits != 0) {
+			bit = __builtin_ctzll(bits);
+			vertex = bit + i * 64;
 
-					layer.push_back(vertex);
+			_nextSparse[tid][_nextSparseSize[tid]++] = vertex;
 
-					bits &= ~(1 << bit);
-				}
-			}
-
-			return layer;
-		}, i, i + 8));
-	}
-
-	for (auto &f : futures) {
-		std::vector<int> layer = f.get();
-
-		_sparse.insert(_sparse.end(), layer.begin(), layer.end());
+			bits &= ~(1 << bit);
+		}
 	}
 
 	_dense.clear();
+
+	_prefixSum[0] = 0;
+
+	for (i = 0; i < _maxThreads; i++) {
+		_prefixSum[i + 1] = _prefixSum[i] + _nextSparseSize[i];
+	}
+
+	#pragma omp parallel for private(tid, j)
+	for (i = 0; i < _maxThreads; i++) {
+		tid = omp_get_thread_num();
+
+		for (j = 0; j < _nextSparseSize[tid]; j++) {
+			_sparse[_prefixSum[tid] + j] = _nextSparse[tid][j];
+		}
+	}
+
+	_size = _prefixSum[_maxThreads];
+	_representation = Representation::Sparse;
 }
+
