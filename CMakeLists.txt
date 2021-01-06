@@ -5,11 +5,10 @@ set (BFS_VERSION_MAJOR 0)
 set (BFS_VERSION_MINOR 1)
 set (BFS_VERSION_PATCH 0)
 
-set(CMAKE_VERBOSE_MAKEFILE on)
-set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra")
-set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(OpenMP REQUIRED)
 
-find_package(Threads REQUIRED)
+set(CMAKE_VERBOSE_MAKEFILE on)
+set(CMAKE_CXX_FLAGS "-O3 -Wall -Wextra ${OpenMP_CXX_FLAGS}")
 
 include_directories("${CMAKE_SOURCE_DIR}/include")
 
